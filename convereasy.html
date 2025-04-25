@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ConvertEasy - File Converter</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/ffmpeg.wasm@0.10.1/dist/ffmpeg.min.js"></script>
+  <script src="https://unpkg.com/browser-image-compression"></script>
+  <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+  <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
+  <style>
+    body.dark {
+      background-color: #1a202c;
+      color: white;
+    }
+    .drop-zone {
+      @apply border-2 border-dashed p-6 rounded-xl text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800;
+    }
+  </style>
+</head>
+
+<body class="transition-colors duration-300">
+  <header class="bg-white dark:bg-gray-900 shadow p-4 flex justify-between items-center">
+    <h1 class="text-2xl font-bold">ConvertEasy</h1>
+    <div>
+      <select id="langSwitch" class="p-2 rounded border">
+        <option value="en">English</option>
+        <option value="ar">العربية</option>
+      </select>
+      <button id="darkModeToggle" class="ml-2 px-3 py-1 bg-gray-800 text-white rounded">Dark</button>
+    </div>
+  </header>
+
+  <main class="p-6 max-w-4xl mx-auto">
+    <section>
+      <h2 class="text-xl font-semibold mb-4" id="convertTitle">Convert Your Files</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Image Conversion -->
+        <div class="drop-zone" onclick="document.getElementById('imgInput').click()">
+          <p>Image Converter</p>
+          <input type="file" id="imgInput" accept="image/*" class="hidden" onchange="handleImage(this.files)" />
+        </div>
+
+        <!-- Video Conversion -->
+        <div class="drop-zone" onclick="document.getElementById('vidInput').click()">
+          <p>Video Converter</p>
+          <input type="file" id="vidInput" accept="video/*" class="hidden" onchange="handleVideo(this.files)" />
+        </div>
+
+        <!-- PDF Conversion -->
+        <div class="drop-zone" onclick="document.getElementById('pdfInput').click()">
+          <p>PDF Converter</p>
+          <input type="file" id="pdfInput" accept="application/pdf" class="hidden" onchange="handlePDF(this.files)" />
+        </div>
+
+        <!-- DOCX Conversion -->
+        <div class="drop-zone" onclick="document.getElementById('docInput').click()">
+          <p>DOCX Converter</p>
+          <input type="file" id="docInput" accept="application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="hidden" onchange="handleDOCX(this.files)" />
+        </div>
+
+      </div>
+    </section>
+
+    <div id="result" class="mt-6"></div>
+  </main>
+
+  <footer class="text-center text-sm p-4 text-gray-500 dark:text-gray-400">
+    &copy; 2025 ConvertEasy. All operations are client-side.
+  </footer>
+
+  <script>
+    // Dark mode toggle
+    const toggle = document.getElementById('darkModeToggle');
+    toggle.onclick = () => document.body.classList.toggle('dark');
+
+    // Language switch
+    const langSelect = document.getElementById('langSwitch');
+    langSelect.onchange = () => setLanguage(langSelect.value);
+    function setLanguage(lang) {
+      document.getElementById('convertTitle').textContent = lang === 'ar' ? 'حوّل ملفاتك' : 'Convert Your Files';
+    }
+
+    async function handleImage(files) {
+      const file = files[0];
+      const options = { maxWidthOrHeight: 800 };
+      const compressed = await imageCompression(file, options);
+      downloadFile(compressed, 'converted-image.jpg');
+    }
+
+    async function handleVideo(files) {
+      const { createFFmpeg, fetchFile } = FFmpeg;
+      const ffmpeg = createFFmpeg({ log: true });
+      await ffmpeg.load();
+      const file = files[0];
+      ffmpeg.FS('writeFile', file.name, await fetchFile(file));
+      const output = 'output.mp4';
+      await ffmpeg.run('-i', file.name, output);
+      const data = ffmpeg.FS('readFile', output);
+      downloadFile(new Blob([data.buffer], { type: 'video/mp4' }), output);
+    }
+
+    async function handlePDF(files) {
+      const file = files[0];
+      const arrayBuffer = await file.arrayBuffer();
+      const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+      const pdfBytes = await pdfDoc.save();
+      downloadFile(new Blob([pdfBytes], { type: 'application/pdf' }), 'converted.pdf');
+    }
+
+    async function handleDOCX(files) {
+      const file = files[0];
+      const reader = new FileReader();
+      reader.onload = async function (event) {
+        const result = await mammoth.convertToHtml({ arrayBuffer: event.target.result });
+        const blob = new Blob([result.value], { type: 'text/html' });
+        downloadFile(blob, 'converted.html');
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function downloadFile(blob, name) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+
+</html>

@@ -1,136 +1,97 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
-
+<html lang="ar" dir="rtl" class="dark">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ConvertEasy - File Converter</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/ffmpeg.wasm@0.10.1/dist/ffmpeg.min.js"></script>
-  <script src="https://unpkg.com/browser-image-compression"></script>
-  <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ConvertEasy – محول الصيغ</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- مكتبات التحويل -->
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.4/dist/ffmpeg.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/browser-image-compression"></script>
   <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
-  <style>
-    body.dark {
-      background-color: #1a202c;
-      color: white;
-    }
-    .drop-zone {
-      @apply border-2 border-dashed p-6 rounded-xl text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800;
-    }
-  </style>
 </head>
+<body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen p-4">
 
-<body class="transition-colors duration-300">
-  <header class="bg-white dark:bg-gray-900 shadow p-4 flex justify-between items-center">
-    <h1 class="text-2xl font-bold">ConvertEasy</h1>
-    <div>
-      <select id="langSwitch" class="p-2 rounded border">
-        <option value="en">English</option>
-        <option value="ar">العربية</option>
-      </select>
-      <button id="darkModeToggle" class="ml-2 px-3 py-1 bg-gray-800 text-white rounded">Dark</button>
-    </div>
-  </header>
+  <div class="max-w-3xl mx-auto">
+    <h1 class="text-3xl font-bold text-center mb-6">ConvertEasy – محول الصيغ</h1>
 
-  <main class="p-6 max-w-4xl mx-auto">
-    <section>
-      <h2 class="text-xl font-semibold mb-4" id="convertTitle">Convert Your Files</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-        <!-- Image Conversion -->
-        <div class="drop-zone" onclick="document.getElementById('imgInput').click()">
-          <p>Image Converter</p>
-          <input type="file" id="imgInput" accept="image/*" class="hidden" onchange="handleImage(this.files)" />
-        </div>
-
-        <!-- Video Conversion -->
-        <div class="drop-zone" onclick="document.getElementById('vidInput').click()">
-          <p>Video Converter</p>
-          <input type="file" id="vidInput" accept="video/*" class="hidden" onchange="handleVideo(this.files)" />
-        </div>
-
-        <!-- PDF Conversion -->
-        <div class="drop-zone" onclick="document.getElementById('pdfInput').click()">
-          <p>PDF Converter</p>
-          <input type="file" id="pdfInput" accept="application/pdf" class="hidden" onchange="handlePDF(this.files)" />
-        </div>
-
-        <!-- DOCX Conversion -->
-        <div class="drop-zone" onclick="document.getElementById('docInput').click()">
-          <p>DOCX Converter</p>
-          <input type="file" id="docInput" accept="application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="hidden" onchange="handleDOCX(this.files)" />
-        </div>
-
-      </div>
+    <!-- قسم تحويل الصور -->
+    <section class="mb-8 p-4 border dark:border-gray-700 rounded-lg">
+      <h2 class="text-xl font-semibold mb-2">تحويل الصور (JPEG/PNG)</h2>
+      <input type="file" id="imgInput" accept="image/*" class="mb-2 block" />
+      <button onclick="convertImage()" class="bg-blue-600 text-white px-4 py-2 rounded">تحويل</button>
+      <a id="imgDownload" class="block mt-2 underline hidden">تحميل الصورة</a>
     </section>
 
-    <div id="result" class="mt-6"></div>
-  </main>
+    <!-- قسم تحويل الفيديو/الصوت -->
+    <section class="mb-8 p-4 border dark:border-gray-700 rounded-lg">
+      <h2 class="text-xl font-semibold mb-2">تحويل فيديو/صوت (mp4 → mp3)</h2>
+      <input type="file" id="mediaInput" accept="video/*,audio/*" class="mb-2 block" />
+      <button onclick="convertMedia()" class="bg-green-600 text-white px-4 py-2 rounded">تحويل</button>
+      <a id="mediaDownload" class="block mt-2 underline hidden">تحميل الملف</a>
+    </section>
 
-  <footer class="text-center text-sm p-4 text-gray-500 dark:text-gray-400">
-    &copy; 2025 ConvertEasy. All operations are client-side.
-  </footer>
+    <!-- قسم تحويل DOCX إلى HTML -->
+    <section class="mb-8 p-4 border dark:border-gray-700 rounded-lg">
+      <h2 class="text-xl font-semibold mb-2">تحويل DOCX إلى HTML</h2>
+      <input type="file" id="docxInput" accept=".docx" class="mb-2 block" />
+      <button onclick="convertDocx()" class="bg-purple-600 text-white px-4 py-2 rounded">تحويل</button>
+      <div id="docxResult" class="mt-4 p-2 bg-gray-100 dark:bg-gray-800 rounded hidden"></div>
+    </section>
+  </div>
 
+  <!-- سكريبتات التحويل -->
   <script>
-    // Dark mode toggle
-    const toggle = document.getElementById('darkModeToggle');
-    toggle.onclick = () => document.body.classList.toggle('dark');
+    // تحويل الصور
+    async function convertImage() {
+      const file = document.getElementById('imgInput').files[0];
+      if (!file) return alert('اختر صورة أولاً');
 
-    // Language switch
-    const langSelect = document.getElementById('langSwitch');
-    langSelect.onchange = () => setLanguage(langSelect.value);
-    function setLanguage(lang) {
-      document.getElementById('convertTitle').textContent = lang === 'ar' ? 'حوّل ملفاتك' : 'Convert Your Files';
-    }
-
-    async function handleImage(files) {
-      const file = files[0];
-      const options = { maxWidthOrHeight: 800 };
+      const options = { maxSizeMB: 1, maxWidthOrHeight: 1024 };
       const compressed = await imageCompression(file, options);
-      downloadFile(compressed, 'converted-image.jpg');
+      const url = URL.createObjectURL(compressed);
+      const link = document.getElementById('imgDownload');
+      link.href = url;
+      link.download = 'converted.jpg';
+      link.classList.remove('hidden');
     }
 
-    async function handleVideo(files) {
+    // تحويل فيديو/صوت
+    async function convertMedia() {
       const { createFFmpeg, fetchFile } = FFmpeg;
       const ffmpeg = createFFmpeg({ log: true });
+      const file = document.getElementById('mediaInput').files[0];
+      if (!file) return alert('اختر ملف فيديو أو صوت');
+
       await ffmpeg.load();
-      const file = files[0];
       ffmpeg.FS('writeFile', file.name, await fetchFile(file));
-      const output = 'output.mp4';
-      await ffmpeg.run('-i', file.name, output);
-      const data = ffmpeg.FS('readFile', output);
-      downloadFile(new Blob([data.buffer], { type: 'video/mp4' }), output);
+      await ffmpeg.run('-i', file.name, 'output.mp3');
+      const data = ffmpeg.FS('readFile', 'output.mp3');
+
+      const url = URL.createObjectURL(new Blob([data.buffer], { type: 'audio/mpeg' }));
+      const link = document.getElementById('mediaDownload');
+      link.href = url;
+      link.download = 'converted.mp3';
+      link.classList.remove('hidden');
     }
 
-    async function handlePDF(files) {
-      const file = files[0];
-      const arrayBuffer = await file.arrayBuffer();
-      const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
-      const pdfBytes = await pdfDoc.save();
-      downloadFile(new Blob([pdfBytes], { type: 'application/pdf' }), 'converted.pdf');
-    }
+    // تحويل DOCX إلى HTML
+    function convertDocx() {
+      const file = document.getElementById('docxInput').files[0];
+      if (!file) return alert('اختر ملف DOCX');
 
-    async function handleDOCX(files) {
-      const file = files[0];
       const reader = new FileReader();
-      reader.onload = async function (event) {
-        const result = await mammoth.convertToHtml({ arrayBuffer: event.target.result });
-        const blob = new Blob([result.value], { type: 'text/html' });
-        downloadFile(blob, 'converted.html');
+      reader.onload = function (event) {
+        const arrayBuffer = event.target.result;
+        mammoth.convertToHtml({ arrayBuffer: arrayBuffer }).then(function (result) {
+          const div = document.getElementById('docxResult');
+          div.innerHTML = result.value;
+          div.classList.remove('hidden');
+        });
       };
       reader.readAsArrayBuffer(file);
     }
-
-    function downloadFile(blob, name) {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = name;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
   </script>
 </body>
-
 </html>
